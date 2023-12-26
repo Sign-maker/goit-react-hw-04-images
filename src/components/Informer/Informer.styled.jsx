@@ -1,7 +1,7 @@
 import styled from 'styled-components';
 import { INFO_TYPES } from 'configs/constants';
 
-export const InformerContainer = styled.p`
+export const Informer = styled.p`
   text-align: center;
   color: ${props => {
     let color = '';

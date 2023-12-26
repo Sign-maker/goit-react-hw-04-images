@@ -1,42 +1,38 @@
-import React, { Component } from 'react';
+import { useEffect } from 'react';
 import { Backdrop, Button, ModalContent } from './Modal.styled';
 import { IoMdCloseCircleOutline } from 'react-icons/io';
 
-export class Modal extends Component {
-  componentDidMount() {
-    window.addEventListener('keydown', this.onEscClick);
+export const Modal = ({ children, onModalClose }) => {
+  useEffect(() => {
+    const onEscClick = event => {
+      if (event.code !== 'Escape') {
+        return;
+      }
+      onModalClose();
+    };
+
+    window.addEventListener('keydown', onEscClick);
     document.body.style.overflow = 'hidden';
-  }
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.onEscClick);
-    document.body.style.overflow = 'auto';
-  }
+    return () => {
+      window.removeEventListener('keydown', onEscClick);
+      document.body.style.overflow = 'auto';
+    };
+  }, [onModalClose]);
 
-  onEscClick = event => {
-    if (event.code !== 'Escape') {
-      return;
-    }
-    this.props.onModalClose();
-  };
-
-  onBackdropClick = event => {
+  const onBackdropClick = event => {
     if (event.target !== event.currentTarget) {
       return;
     }
-    this.props.onModalClose();
+    onModalClose();
   };
 
-  render() {
-    const { children, onModalClose } = this.props;
-
-    return (
-      <Backdrop onClick={this.onBackdropClick}>
-        <ModalContent>{children}</ModalContent>
-        <Button type="button" onClick={onModalClose}>
-          <IoMdCloseCircleOutline size={30} />
-        </Button>
-      </Backdrop>
-    );
-  }
-}
+  return (
+    <Backdrop onClick={onBackdropClick}>
+      <ModalContent>{children}</ModalContent>
+      <Button type="button" onClick={onModalClose}>
+        <IoMdCloseCircleOutline size={30} />
+      </Button>
+    </Backdrop>
+  );
+};

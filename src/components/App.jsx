@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { Searchbar } from './Searchbar/Searchbar';
 import { getImages } from 'servicesApi/servicesApi';
 import { ImageGallery } from './ImageGallery/ImageGallery';
@@ -7,112 +7,97 @@ import { Modal } from './Modal/Modal';
 import { BigImage } from './BigImage/BigImage';
 import { AppContainer } from './App.styled';
 import { Loader } from './Loader/Loader';
-import { Informer } from './Informer/Informer';
+import { Informer } from './Informer/Informer.styled';
 import { STATUS, INIT_REQUEST_PARAMS, INFO_TYPES } from 'configs/constants';
 
-export class App extends Component {
-  state = {
-    searchName: '',
-    images: [],
-    page: 1,
-    isNextPage: false,
-    status: STATUS.idle,
-    error: null,
-    showModal: false,
-    selectedImage: null,
-  };
+export const App = () => {
+  const [searchName, setSearchName] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [isNextPage, setIsNextPage] = useState(false);
+  const [status, setStatus] = useState(STATUS.idle);
+  const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
-  async componentDidUpdate(prevProps, prevState) {
-    const { searchName, page } = this.state;
-    if (prevState.page !== page || prevState.searchName !== searchName) {
+  useEffect(() => {
+    if (!searchName) return;
+
+    async function fetchImages() {
       try {
-        this.setState({ status: STATUS.pending });
-
+        setStatus(STATUS.pending);
         const { hits, totalHits } = await getImages(
           searchName,
           page,
           INIT_REQUEST_PARAMS.perPage
         );
-
-        this.setState(prevState => {
-          return {
-            images: [...prevState.images, ...hits],
-            isNextPage: this.isNextPage(totalHits, prevState.page),
-            status: STATUS.resolved,
-          };
-        });
+        setImages(state => [...state, ...hits]);
+        setIsNextPage(
+          page < Math.ceil(totalHits / INIT_REQUEST_PARAMS.perPage)
+        );
+        setStatus(STATUS.resolved);
       } catch (error) {
-        this.setState({ status: STATUS.rejected, error });
+        setStatus(STATUS.rejected);
+        setError(error);
       }
     }
-  }
 
-  onSearchSubmit = searchName => {
-    if (this.state.searchName === searchName) return;
+    fetchImages();
+  }, [searchName, page]);
 
-    this.setState({
-      searchName,
-      images: [],
-      page: 1,
-    });
+  const onSearchSubmit = query => {
+    if (searchName === query) return;
+
+    setSearchName(query);
+    setImages([]);
+    setPage(1);
   };
 
-  onLoadMore = () => {
-    this.setState(prevState => {
-      return { page: prevState.page + 1 };
-    });
+  const onLoadMore = () => {
+    setPage(state => state + 1);
   };
 
-  isNextPage(totalImages, currentPage) {
-    return currentPage < Math.ceil(totalImages / INIT_REQUEST_PARAMS.perPage);
-  }
-
-  onModalClose = () => {
-    this.setState({ showModal: false });
+  const onModalClose = () => {
+    setShowModal(false);
   };
 
-  onCardClick = id => {
-    const selectedImage = this.state.images.find(image => image.id === id);
-    this.setState({ selectedImage, showModal: true });
+  const onCardClick = id => {
+    const selectedImage = images.find(image => image.id === id);
+
+    setSelectedImage(selectedImage);
+    setShowModal(true);
   };
 
-  render() {
-    const { status, images, isNextPage, error, showModal } = this.state;
+  const showGallery =
+    (status === STATUS.resolved || isNextPage) && images.length > 0;
+  const showNoImagesWarning = status === STATUS.resolved && !images.length;
+  const showLoader = status === STATUS.pending;
+  const showLoadMore = status === STATUS.resolved && isNextPage;
+  const showError = status === STATUS.rejected;
 
-    const showGallery =
-      (status === STATUS.resolved || isNextPage) && images.length > 0;
-    const showNoImagesWarning = status === STATUS.resolved && !images.length;
-    const showLoader = status === STATUS.pending;
-    const showLoadMore = status === STATUS.resolved && isNextPage;
-    const showError = status === STATUS.rejected;
-
-    return (
-      <AppContainer>
-        <Searchbar onSubmit={this.onSearchSubmit} />
-        {showGallery && (
-          <ImageGallery
-            images={this.state.images}
-            onCardClick={this.onCardClick}
-          />
-        )}
-        {showNoImagesWarning && (
-          <Informer infoType={INFO_TYPES.notification}>
-            No images found! Try another request.
-          </Informer>
-        )}
-        {showLoader && <Loader />}
-        {showLoadMore && <Button onLoadMore={this.onLoadMore} />}
-        {showError && (
-          <Informer infoType={INFO_TYPES.error}>
-            {`Oops, something went wrong! ${error.message}`}
-          </Informer>
-        )}
-        {showModal && (
-          <Modal onModalClose={this.onModalClose}>
-            <BigImage imageData={this.state.selectedImage} />
-          </Modal>
-        )}
-      </AppContainer>
-    );
-  }
-}
+  return (
+    <AppContainer>
+      <Searchbar onSubmit={onSearchSubmit} />
+      {showGallery && (
+        <ImageGallery images={images} onCardClick={onCardClick} />
+      )}
+      {showNoImagesWarning && (
+        <Informer $infotype={INFO_TYPES.notification}>
+          No images found! Try another request.
+        </Informer>
+      )}
+      {showLoader && <Loader />}
+      {showLoadMore && <Button onLoadMore={onLoadMore} />}
+      {showError && (
+        <Informer $infotype={INFO_TYPES.error}>
+          {`Oops, something went wrong! ${error.message}`}
+        </Informer>
+      )}
+      {showModal && (
+        <Modal onModalClose={onModalClose}>
+          <BigImage imageData={selectedImage} />
+        </Modal>
+      )}
+    </AppContainer>
+  );
+};
